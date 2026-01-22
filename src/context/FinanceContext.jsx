@@ -8,7 +8,11 @@ import {
     subscribeGoals,
     addGoalDB,
     updateGoalDB,
-    deleteGoalDB
+    deleteGoalDB,
+    subscribeInvestments,
+    addInvestmentDB,
+    updateInvestmentDB,
+    deleteInvestmentDB
 } from '../services/db';
 
 const FinanceContext = createContext();
@@ -23,6 +27,7 @@ export function FinanceProvider({ children }) {
     // Estados Locais (usados quando deslogado ou como cache visual)
     const [transactions, setTransactions] = useState([]);
     const [goals, setGoals] = useState([]);
+    const [investments, setInvestments] = useState([]);
 
     // Estado para categorias personalizadas
     const [categories, setCategories] = useState(() => {
@@ -37,24 +42,23 @@ export function FinanceProvider({ children }) {
     useEffect(() => {
         if (user) {
             // Se logado: Inscreve no Firestore
-            const unsubTransactions = subscribeTransactions(user.id, (data) => {
-                setTransactions(data);
-            });
-
-            const unsubGoals = subscribeGoals(user.id, (data) => {
-                setGoals(data);
-            });
+            const unsubTransactions = subscribeTransactions(user.id, (data) => setTransactions(data));
+            const unsubGoals = subscribeGoals(user.id, (data) => setGoals(data));
+            const unsubInvestments = subscribeInvestments(user.id, (data) => setInvestments(data));
 
             return () => {
                 unsubTransactions();
                 unsubGoals();
+                unsubInvestments();
             };
         } else {
             // Se deslogado: Carrega do LocalStorage
             const savedTrans = localStorage.getItem('finance_transactions');
             const savedGoals = localStorage.getItem('finance_goals');
+            const savedInv = localStorage.getItem('finance_investments');
             if (savedTrans) setTransactions(JSON.parse(savedTrans));
             if (savedGoals) setGoals(JSON.parse(savedGoals));
+            if (savedInv) setInvestments(JSON.parse(savedInv));
         }
     }, [user]);
 
@@ -63,9 +67,10 @@ export function FinanceProvider({ children }) {
         if (!user) {
             localStorage.setItem('finance_transactions', JSON.stringify(transactions));
             localStorage.setItem('finance_goals', JSON.stringify(goals));
+            localStorage.setItem('finance_investments', JSON.stringify(investments));
         }
         localStorage.setItem('finance_categories', JSON.stringify(categories));
-    }, [transactions, categories, goals, user]);
+    }, [transactions, categories, goals, investments, user]);
 
 
     // --- TRANSAÇÕES ---
@@ -177,7 +182,31 @@ export function FinanceProvider({ children }) {
         }
     };
 
-    // --- CÁLCULOS (IGUAIS) ---
+    // --- INVESTIMENTOS ---
+    const addInvestment = (investment) => {
+        const newInv = {
+            id: crypto.randomUUID(),
+            ...investment,
+            amount: parseFloat(investment.amount),
+            initialAmount: parseFloat(investment.initialAmount || investment.amount)
+        };
+
+        if (user) {
+            addInvestmentDB(user.id, newInv);
+        } else {
+            setInvestments(prev => [...prev, newInv]);
+        }
+    };
+
+    const removeInvestment = (id) => {
+        if (user) {
+            deleteInvestmentDB(user.id, id);
+        } else {
+            setInvestments(prev => prev.filter(i => i.id !== id));
+        }
+    };
+
+    // --- CÁLCULOS ---
     const filteredTransactions = transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
 
     const summary = filteredTransactions.reduce((acc, t) => {
@@ -189,7 +218,7 @@ export function FinanceProvider({ children }) {
             acc.expenses += val;
             acc.balance -= val;
         } else if (t.type === 'investment') {
-            acc.investments += val;
+            acc.investments += val; // Mantendo fluxo
             acc.balance -= val;
         }
         return acc;
@@ -241,7 +270,10 @@ export function FinanceProvider({ children }) {
             goals,
             addGoal,
             editGoal,
-            removeGoal
+            removeGoal,
+            investments,
+            addInvestment,
+            removeInvestment
         }}>
             {children}
         </FinanceContext.Provider>

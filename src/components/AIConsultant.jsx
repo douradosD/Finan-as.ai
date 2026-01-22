@@ -1,18 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, X, Bot, Trash2 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
+import { useAuth } from '../context/AuthContext';
 import { askFinancialAdvisor } from '../services/ai';
 
 export default function AIConsultant() {
     const { summary, categoriesData } = useFinance();
+    const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState([
-        { role: 'assistant', text: 'Olá, Eduardo! Sou seu Agente Financeiro Pessoal. 🤖\n\nEstou analisando seus dados em tempo real. Como posso te ajudar a economizar hoje?' }
-    ]);
+    const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const messagesEndRef = useRef(null);
+
+    // Inicializa a mensagem de boas-vindas com o nome do usuário
+    useEffect(() => {
+        if (messages.length === 0 && user) {
+            const firstName = user.name?.split(' ')[0] || 'Investidor';
+            setMessages([
+                { role: 'assistant', text: `Olá, ${firstName}! Sou seu Agente Financeiro Pessoal. 🤖\n\nEstou analisando seus dados em tempo real. Como posso te ajudar a economizar hoje?` }
+            ]);
+        }
+    }, [user]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -32,7 +42,13 @@ export default function AIConsultant() {
         setIsLoading(true);
 
         try {
-            const context = { summary, categoriesData };
+            // Passamos o nome do usuário no contexto para a IA ser mais pessoal
+            const context = {
+                summary,
+                categoriesData,
+                userName: user?.name || 'Usuário'
+            };
+
             // Chamando nosso Agente Local (sem API Key necessária)
             const responseText = await askFinancialAdvisor(null, userMsg.text, context);
 
@@ -45,7 +61,8 @@ export default function AIConsultant() {
     };
 
     const clearHistory = () => {
-        setMessages([{ role: 'assistant', text: 'Histórico limpo! Vamos começar de novo. O que você precisa?' }]);
+        const firstName = user?.name?.split(' ')[0] || 'Investidor';
+        setMessages([{ role: 'assistant', text: `Histórico limpo! Vamos começar de novo, ${firstName}. O que você precisa?` }]);
     };
 
     return (
@@ -99,8 +116,8 @@ export default function AIConsultant() {
                     {messages.map((msg, idx) => (
                         <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[85%] p-3 rounded-xl text-sm ${msg.role === 'user'
-                                    ? 'bg-yellow-400 text-black rounded-tr-none'
-                                    : 'bg-zinc-800 text-zinc-200 rounded-tl-none whitespace-pre-wrap'
+                                ? 'bg-yellow-400 text-black rounded-tr-none'
+                                : 'bg-zinc-800 text-zinc-200 rounded-tl-none whitespace-pre-wrap'
                                 }`}>
                                 {msg.text}
                             </div>

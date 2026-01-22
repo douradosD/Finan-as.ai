@@ -24,6 +24,7 @@ import AIConsultant from './components/AIConsultant';
 import MonthSelector from './components/MonthSelector';
 import MonthProgress from './components/MonthProgress';
 import GoalModal from './components/GoalModal';
+import Investments from './components/Investments';
 import Login from './pages/Login';
 
 // Wrapper principal que fornece o contexto
@@ -211,7 +212,7 @@ function AppContent() {
                     </button>
                 </div>
 
-                {activeTab !== 'budget' && (
+                {activeTab !== 'budget' && activeTab !== 'investments' && (
                     <div className="w-full">
                         <MonthSelector selectedMonth={selectedMonth} onChange={setSelectedMonth} />
                     </div>
@@ -233,7 +234,7 @@ function AppContent() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {activeTab !== 'budget' && (
+                        {activeTab !== 'budget' && activeTab !== 'investments' && (
                             <MonthSelector selectedMonth={selectedMonth} onChange={setSelectedMonth} />
                         )}
 
@@ -431,11 +432,7 @@ function AppContent() {
                 )}
 
                 {activeTab === 'investments' && (
-                    <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-800 text-center">
-                        <TrendingUp size={48} className="mx-auto text-zinc-700 mb-4" />
-                        <h3 className="text-xl font-bold mb-2">Investimentos</h3>
-                        <p className="text-zinc-400">Em breve...</p>
-                    </div>
+                    <Investments />
                 )}
 
             </main>

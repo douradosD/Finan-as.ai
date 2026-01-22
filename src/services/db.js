@@ -79,3 +79,35 @@ export const deleteGoalDB = async (userId, goalId) => {
     if (!userId) return;
     await deleteDoc(doc(db, "users", userId, "goals", goalId));
 };
+
+// --- INVESTIMENTOS ---
+
+export const subscribeInvestments = (userId, callback) => {
+    if (!userId) return () => {};
+    
+    const q = query(collection(db, "users", userId, "investments"));
+
+    return onSnapshot(q, (snapshot) => {
+        const investments = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        callback(investments);
+    });
+};
+
+export const addInvestmentDB = async (userId, investment) => {
+    if (!userId) return;
+    await addDoc(collection(db, "users", userId, "investments"), investment);
+};
+
+export const updateInvestmentDB = async (userId, investmentId, updatedData) => {
+    if (!userId) return;
+    const ref = doc(db, "users", userId, "investments", investmentId);
+    await updateDoc(ref, updatedData);
+};
+
+export const deleteInvestmentDB = async (userId, investmentId) => {
+    if (!userId) return;
+    await deleteDoc(doc(db, "users", userId, "investments", investmentId));
+};
