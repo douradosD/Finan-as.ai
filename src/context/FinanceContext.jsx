@@ -1,4 +1,15 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { useAuth } from './AuthContext';
+import {
+    subscribeTransactions,
+    addTransactionDB,
+    updateTransactionDB,
+    deleteTransactionDB,
+    subscribeGoals,
+    addGoalDB,
+    updateGoalDB,
+    deleteGoalDB
+} from '../services/db';
 
 const FinanceContext = createContext();
 
@@ -7,11 +18,11 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export function FinanceProvider({ children }) {
-    // Inicializa o estado lendo do LocalStorage ou começa com lista vazia
-    const [transactions, setTransactions] = useState(() => {
-        const saved = localStorage.getItem('finance_transactions');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const { user } = useAuth();
+
+    // Estados Locais (usados quando deslogado ou como cache visual)
+    const [transactions, setTransactions] = useState([]);
+    const [goals, setGoals] = useState([]);
 
     // Estado para categorias personalizadas
     const [categories, setCategories] = useState(() => {
@@ -19,40 +30,56 @@ export function FinanceProvider({ children }) {
         return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
     });
 
-    // NOVO: Estado para Metas Financeiras
-    const [goals, setGoals] = useState(() => {
-        const saved = localStorage.getItem('finance_goals');
-        return saved ? JSON.parse(saved) : [];
-    });
+    // Estado para Mês Selecionado (Filtro)
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
-    // Estado para Mês Selecionado (Filtro) - Padrão: Mês Atual
-    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // Formato YYYY-MM
-
-    // --- EFEITOS DE PERSISTÊNCIA ---
+    // --- SINCRONIZAÇÃO (REALTIME) ---
     useEffect(() => {
-        localStorage.setItem('finance_transactions', JSON.stringify(transactions));
-    }, [transactions]);
+        if (user) {
+            // Se logado: Inscreve no Firestore
+            const unsubTransactions = subscribeTransactions(user.id, (data) => {
+                setTransactions(data);
+            });
 
+            const unsubGoals = subscribeGoals(user.id, (data) => {
+                setGoals(data);
+            });
+
+            return () => {
+                unsubTransactions();
+                unsubGoals();
+            };
+        } else {
+            // Se deslogado: Carrega do LocalStorage
+            const savedTrans = localStorage.getItem('finance_transactions');
+            const savedGoals = localStorage.getItem('finance_goals');
+            if (savedTrans) setTransactions(JSON.parse(savedTrans));
+            if (savedGoals) setGoals(JSON.parse(savedGoals));
+        }
+    }, [user]);
+
+    // --- PERSISTÊNCIA LOCAL (BACKUP/OFFLINE) ---
     useEffect(() => {
+        if (!user) {
+            localStorage.setItem('finance_transactions', JSON.stringify(transactions));
+            localStorage.setItem('finance_goals', JSON.stringify(goals));
+        }
         localStorage.setItem('finance_categories', JSON.stringify(categories));
-    }, [categories]);
-
-    useEffect(() => {
-        localStorage.setItem('finance_goals', JSON.stringify(goals));
-    }, [goals]);
+    }, [transactions, categories, goals, user]);
 
 
     // --- TRANSAÇÕES ---
     const addTransaction = (transaction) => {
-        if (transaction.isInstallment && transaction.installmentsCount > 1) {
-            const newTransactions = [];
-            const currentDate = new Date();
+        const newTransactionsList = [];
 
+        // Lógica de Parcelamento
+        if (transaction.isInstallment && transaction.installmentsCount > 1) {
+            const currentDate = new Date();
             for (let i = 0; i < transaction.installmentsCount; i++) {
                 const date = new Date(currentDate);
                 date.setMonth(currentDate.getMonth() + i);
 
-                newTransactions.push({
+                newTransactionsList.push({
                     id: crypto.randomUUID(),
                     date: date.toISOString(),
                     description: `${transaction.description} (${i + 1}/${transaction.installmentsCount})`,
@@ -61,26 +88,36 @@ export function FinanceProvider({ children }) {
                     category: transaction.category
                 });
             }
-            setTransactions(prev => [...newTransactions, ...prev]);
         } else {
-            const newTransaction = {
+            newTransactionsList.push({
                 id: crypto.randomUUID(),
                 date: new Date().toISOString(),
                 ...transaction,
                 amount: parseFloat(transaction.amount)
-            };
-            setTransactions(prev => [newTransaction, ...prev]);
+            });
         }
 
+        // Salvar (Firestore ou Local)
+        if (user) {
+            newTransactionsList.forEach(t => addTransactionDB(user.id, t));
+        } else {
+            setTransactions(prev => [...newTransactionsList, ...prev]);
+        }
+
+        // Categorias
         if (transaction.type === 'expense' && transaction.category && !categories.includes(transaction.category)) {
             setCategories(prev => [...prev, transaction.category]);
         }
     };
 
     const editTransaction = (id, updatedData) => {
-        setTransactions(prev => prev.map(t =>
-            t.id === id ? { ...t, ...updatedData, amount: parseFloat(updatedData.amount) } : t
-        ));
+        const data = { ...updatedData, amount: parseFloat(updatedData.amount) };
+
+        if (user) {
+            updateTransactionDB(user.id, id, data);
+        } else {
+            setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
+        }
 
         if (updatedData.type === 'expense' && updatedData.category && !categories.includes(updatedData.category)) {
             setCategories(prev => [...prev, updatedData.category]);
@@ -88,7 +125,11 @@ export function FinanceProvider({ children }) {
     };
 
     const removeTransaction = (id) => {
-        setTransactions(prev => prev.filter(t => t.id !== id));
+        if (user) {
+            deleteTransactionDB(user.id, id);
+        } else {
+            setTransactions(prev => prev.filter(t => t.id !== id));
+        }
     };
 
     const addCategory = (category) => {
@@ -101,26 +142,43 @@ export function FinanceProvider({ children }) {
     const addGoal = (goal) => {
         const newGoal = {
             id: crypto.randomUUID(),
-            currentAmount: 0, // Começa com 0 ou o usuário define
+            currentAmount: 0,
             ...goal,
             targetAmount: parseFloat(goal.targetAmount),
             currentAmount: parseFloat(goal.currentAmount || 0)
         };
-        setGoals(prev => [...prev, newGoal]);
+
+        if (user) {
+            addGoalDB(user.id, newGoal);
+        } else {
+            setGoals(prev => [...prev, newGoal]);
+        }
     };
 
     const editGoal = (id, updatedGoal) => {
-        setGoals(prev => prev.map(g =>
-            g.id === id ? { ...g, ...updatedGoal, targetAmount: parseFloat(updatedGoal.targetAmount), currentAmount: parseFloat(updatedGoal.currentAmount) } : g
-        ));
+        const data = {
+            ...updatedGoal,
+            targetAmount: parseFloat(updatedGoal.targetAmount),
+            currentAmount: parseFloat(updatedGoal.currentAmount)
+        };
+
+        if (user) {
+            updateGoalDB(user.id, id, data);
+        } else {
+            setGoals(prev => prev.map(g => g.id === id ? { ...g, ...data } : g));
+        }
     };
 
     const removeGoal = (id) => {
-        setGoals(prev => prev.filter(g => g.id !== id));
+        if (user) {
+            deleteGoalDB(user.id, id);
+        } else {
+            setGoals(prev => prev.filter(g => g.id !== id));
+        }
     };
 
-    // --- FILTRAGEM E CÁLCULOS ---
-    const filteredTransactions = transactions.filter(t => t.date.startsWith(selectedMonth));
+    // --- CÁLCULOS (IGUAIS) ---
+    const filteredTransactions = transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
 
     const summary = filteredTransactions.reduce((acc, t) => {
         const val = t.amount;
@@ -180,7 +238,6 @@ export function FinanceProvider({ children }) {
             balanceHistory,
             selectedMonth,
             setSelectedMonth,
-            // Exportando Metas
             goals,
             addGoal,
             editGoal,

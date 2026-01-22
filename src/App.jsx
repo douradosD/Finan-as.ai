@@ -11,10 +11,12 @@ import {
     DollarSign,
     Trash2,
     Pencil,
-    Target
+    Target,
+    LogOut
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import TransactionModal from './components/TransactionModal';
 import ExpensesDetailModal from './components/ExpensesDetailModal';
 import BalanceAlert from './components/BalanceAlert';
@@ -22,14 +24,39 @@ import AIConsultant from './components/AIConsultant';
 import MonthSelector from './components/MonthSelector';
 import MonthProgress from './components/MonthProgress';
 import GoalModal from './components/GoalModal';
+import Login from './pages/Login';
 
 // Wrapper principal que fornece o contexto
 export default function App() {
     return (
-        <FinanceProvider>
+        <AuthProvider>
+            <FinanceProvider>
+                <AppRoutes />
+            </FinanceProvider>
+        </AuthProvider>
+    );
+}
+
+function AppRoutes() {
+    const { user, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return <Login />;
+    }
+
+    return (
+        <>
             <AppContent />
             <AIConsultant />
-        </FinanceProvider>
+        </>
     );
 }
 
@@ -38,6 +65,9 @@ function AppContent() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isExpensesModalOpen, setIsExpensesModalOpen] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState(null);
+
+    // Auth Context para Logout
+    const { user, logout } = useAuth();
 
     // Estados para Metas
     const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
@@ -126,14 +156,26 @@ function AppContent() {
                     <NavItem icon={<TrendingUp size={20} />} label="Investimentos" active={activeTab === 'investments'} onClick={() => setActiveTab('investments')} />
                 </div>
 
+                {/* User Profile & Logout */}
                 <div className="absolute bottom-6 left-6 right-6">
-                    <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
-                        <div className="flex items-center gap-2 mb-2 text-yellow-400">
-                            <AlertTriangle size={16} />
-                            <span className="text-xs font-bold uppercase">Alerta de Conta</span>
+                    <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700 flex items-center justify-between">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            {/* Avatar (fake for now) */}
+                            <div className="w-8 h-8 rounded-full bg-yellow-400 text-black flex items-center justify-center font-bold text-xs shrink-0">
+                                {user?.name?.charAt(0) || 'U'}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold truncate">{user?.name || 'Usuário'}</p>
+                                <p className="text-xs text-zinc-400 truncate">Online</p>
+                            </div>
                         </div>
-                        <p className="text-sm text-zinc-400 mb-2">Energia vence amanhã</p>
-                        <p className="text-lg font-bold">R$ 250,00</p>
+                        <button
+                            onClick={logout}
+                            className="text-zinc-400 hover:text-red-500 transition-colors p-1"
+                            title="Sair"
+                        >
+                            <LogOut size={18} />
+                        </button>
                     </div>
                 </div>
             </nav>
@@ -164,6 +206,9 @@ function AppContent() {
                         </div>
                         <span className="font-bold">Finanças.ai</span>
                     </div>
+                    <button onClick={logout} className="text-zinc-500 hover:text-white">
+                        <LogOut size={20} />
+                    </button>
                 </div>
 
                 {activeTab !== 'budget' && (
@@ -178,7 +223,7 @@ function AppContent() {
                 {/* Desktop Header */}
                 <header className="hidden md:flex justify-between items-center mb-8 gap-4">
                     <div>
-                        <h2 className="text-2xl font-bold mb-1">Olá, Eduardo Dourado 👋</h2>
+                        <h2 className="text-2xl font-bold mb-1">Olá, {user?.name?.split(' ')[0]} 👋</h2>
                         <p className="text-zinc-400">
                             {activeTab === 'dashboard' && 'Resumo financeiro mensal'}
                             {activeTab === 'transactions' && 'Gerencie suas entradas e saídas'}
