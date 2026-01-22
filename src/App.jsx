@@ -324,13 +324,18 @@ function AppContent() {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <SummaryCard
-                title="Renda Mensal"
-                value={summary.income}
-                icon={<DollarSign size={20} />}
-                trend="+5%"
-                trendUp={true}
-              />
+              <div
+                className="cursor-pointer transition-transform hover:scale-[1.02]"
+                onClick={() => setActiveTab("transactions")}
+              >
+                <SummaryCard
+                  title="Renda Mensal"
+                  value={summary.income}
+                  icon={<DollarSign size={20} />}
+                  trend="+5%"
+                  trendUp={true}
+                />
+              </div>
               <div
                 className="cursor-pointer transition-transform hover:scale-[1.02]"
                 onClick={() => setIsExpensesModalOpen(true)}
@@ -343,19 +348,29 @@ function AppContent() {
                   trendUp={false}
                 />
               </div>
-              <SummaryCard
-                title="Investimentos"
-                value={summary.investments}
-                icon={<TrendingUp size={20} />}
-                trend="+2%"
-                trendUp={true}
-              />
-              <SummaryCard
-                title="Saldo (Mês)"
-                value={summary.balance}
-                icon={<Wallet size={20} />}
-                highlight
-              />
+              <div
+                className="cursor-pointer transition-transform hover:scale-[1.02]"
+                onClick={() => setActiveTab("investments")}
+              >
+                <SummaryCard
+                  title="Investimentos"
+                  value={summary.investments}
+                  icon={<TrendingUp size={20} />}
+                  trend="+2%"
+                  trendUp={true}
+                />
+              </div>
+              <div
+                className="cursor-pointer transition-transform hover:scale-[1.02]"
+                onClick={() => setActiveTab("transactions")}
+              >
+                <SummaryCard
+                  title="Saldo (Mês)"
+                  value={summary.balance}
+                  icon={<Wallet size={20} />}
+                  highlight
+                />
+              </div>
             </div>
 
             {/* GRÁFICO DE EVOLUÇÃO */}
