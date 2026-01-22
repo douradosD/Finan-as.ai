@@ -1,7 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, updateProfile } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // Configuração do Firebase (Copiado do Console)
 const firebaseConfig = {
@@ -18,6 +19,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Função de Login com Google
@@ -34,4 +36,15 @@ export const loginGoogle = async () => {
 // Função de Logout
 export const logoutFirebase = async () => {
     return signOut(auth);
+};
+
+// Upload de Avatar do Usuário e atualização do photoURL
+export const uploadUserAvatar = async (file, userId) => {
+    const fileRef = ref(storage, `users/${userId}/avatar.jpg`);
+    await uploadBytes(fileRef, file);
+    const url = await getDownloadURL(fileRef);
+    if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { photoURL: url });
+    }
+    return url;
 };

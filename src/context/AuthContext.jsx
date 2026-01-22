@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { loginGoogle, logoutFirebase, auth } from '../services/firebase';
+import { loginGoogle, logoutFirebase, auth, uploadUserAvatar } from '../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const AuthContext = createContext();
@@ -47,8 +47,20 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const updateUserPhoto = async (file) => {
+        if (!user?.id) return;
+        try {
+            const url = await uploadUserAvatar(file, user.id);
+            setUser(prev => prev ? { ...prev, photoURL: url } : prev);
+            return url;
+        } catch (error) {
+            console.error("Erro ao atualizar foto:", error);
+            throw error;
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isLoading, loginWithGoogle, logout }}>
+        <AuthContext.Provider value={{ user, isLoading, loginWithGoogle, logout, updateUserPhoto }}>
             {children}
         </AuthContext.Provider>
     );

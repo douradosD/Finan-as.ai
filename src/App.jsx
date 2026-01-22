@@ -34,6 +34,7 @@ import MonthProgress from "./components/MonthProgress";
 import GoalModal from "./components/GoalModal";
 import Investments from "./components/Investments";
 import Login from "./pages/Login";
+import UserAvatar from "./components/UserAvatar";
 
 // Wrapper principal que fornece o contexto
 export default function App() {
@@ -162,9 +163,7 @@ function AppContent() {
       {/* Sidebar (Desktop) */}
       <nav className="fixed top-0 left-0 h-full w-64 bg-zinc-900 border-r border-zinc-800 p-6 hidden md:block z-40">
         <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center text-black font-bold text-xl">
-            $
-          </div>
+          <UserAvatar size={40} />
           <h1 className="text-xl font-bold tracking-tight">
             Finanças<span className="text-yellow-400">.ai</span>
           </h1>
@@ -264,9 +263,7 @@ function AppContent() {
       <div className="md:hidden flex flex-col gap-4 p-4 bg-zinc-900 border-b border-zinc-800 sticky top-0 z-30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-yellow-400 rounded flex items-center justify-center text-black font-bold">
-              $
-            </div>
+            <UserAvatar size={32} />
             <span className="font-bold">Finanças.ai</span>
           </div>
           <button onClick={logout} className="text-zinc-500 hover:text-white">
