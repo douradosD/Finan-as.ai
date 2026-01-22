@@ -17,7 +17,13 @@ export default function AIConsultant() {
     // Inicializa a mensagem de boas-vindas com o nome do usuário
     useEffect(() => {
         if (messages.length === 0 && user) {
-            const firstName = user.name?.split(' ')[0] || 'Investidor';
+            let firstName = user.name?.split(' ')[0] || 'Investidor';
+
+            // PERSONALIZAÇÃO: Se não for o email do Eduardo, assume que é a Sandy
+            if (user.email !== 'eduardodourado000099@gmail.com') {
+                firstName = 'Sandy';
+            }
+
             setMessages([
                 { role: 'assistant', text: `Olá, ${firstName}! Sou seu Agente Financeiro Pessoal. 🤖\n\nEstou analisando seus dados em tempo real. Como posso te ajudar a economizar hoje?` }
             ]);
@@ -42,11 +48,16 @@ export default function AIConsultant() {
         setIsLoading(true);
 
         try {
-            // Passamos o nome do usuário no contexto para a IA ser mais pessoal
+            // Define o nome para o contexto da IA
+            let currentName = user?.name || 'Usuário';
+            if (user?.email && user.email !== 'eduardodourado000099@gmail.com') {
+                currentName = 'Sandy Alves';
+            }
+
             const context = {
                 summary,
                 categoriesData,
-                userName: user?.name || 'Usuário'
+                userName: currentName
             };
 
             // Chamando nosso Agente Local (sem API Key necessária)
@@ -61,7 +72,10 @@ export default function AIConsultant() {
     };
 
     const clearHistory = () => {
-        const firstName = user?.name?.split(' ')[0] || 'Investidor';
+        let firstName = user?.name?.split(' ')[0] || 'Investidor';
+        if (user?.email && user.email !== 'eduardodourado000099@gmail.com') {
+            firstName = 'Sandy';
+        }
         setMessages([{ role: 'assistant', text: `Histórico limpo! Vamos começar de novo, ${firstName}. O que você precisa?` }]);
     };
 
