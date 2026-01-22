@@ -36,41 +36,53 @@ export function FinanceProvider({ children }) {
     });
 
     // Estado para Mês Selecionado (Filtro)
-    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const baseKey = 'finance_selected_month';
+        const saved = localStorage.getItem(baseKey);
+        return saved || new Date().toISOString().slice(0, 7);
+    });
+
+    // Helper para chavear por usuário (email prioritário)
+    const storageKey = (name) => {
+        const idPart = user?.email || user?.id || 'guest';
+        return `finance_${idPart}_${name}`;
+    };
 
     // --- SINCRONIZAÇÃO (REALTIME) ---
     useEffect(() => {
+        // Hidratar pelo usuário atual
+        const savedTrans = localStorage.getItem(storageKey('transactions'));
+        const savedGoals = localStorage.getItem(storageKey('goals'));
+        const savedInv = localStorage.getItem(storageKey('investments'));
+        const savedMonth = localStorage.getItem(storageKey('selected_month'));
+        if (savedTrans) setTransactions(JSON.parse(savedTrans));
+        if (savedGoals) setGoals(JSON.parse(savedGoals));
+        if (savedInv) setInvestments(JSON.parse(savedInv));
+        if (savedMonth) setSelectedMonth(savedMonth);
+
         if (user) {
-            // Se logado: Inscreve no Firestore
             const unsubTransactions = subscribeTransactions(user.id, (data) => setTransactions(data));
             const unsubGoals = subscribeGoals(user.id, (data) => setGoals(data));
             const unsubInvestments = subscribeInvestments(user.id, (data) => setInvestments(data));
-
             return () => {
                 unsubTransactions();
                 unsubGoals();
                 unsubInvestments();
             };
-        } else {
-            // Se deslogado: Carrega do LocalStorage
-            const savedTrans = localStorage.getItem('finance_transactions');
-            const savedGoals = localStorage.getItem('finance_goals');
-            const savedInv = localStorage.getItem('finance_investments');
-            if (savedTrans) setTransactions(JSON.parse(savedTrans));
-            if (savedGoals) setGoals(JSON.parse(savedGoals));
-            if (savedInv) setInvestments(JSON.parse(savedInv));
         }
     }, [user]);
 
     // --- PERSISTÊNCIA LOCAL (BACKUP/OFFLINE) ---
     useEffect(() => {
-        if (!user) {
-            localStorage.setItem('finance_transactions', JSON.stringify(transactions));
-            localStorage.setItem('finance_goals', JSON.stringify(goals));
-            localStorage.setItem('finance_investments', JSON.stringify(investments));
-        }
+        localStorage.setItem(storageKey('transactions'), JSON.stringify(transactions));
+        localStorage.setItem(storageKey('goals'), JSON.stringify(goals));
+        localStorage.setItem(storageKey('investments'), JSON.stringify(investments));
         localStorage.setItem('finance_categories', JSON.stringify(categories));
     }, [transactions, categories, goals, investments, user]);
+
+    useEffect(() => {
+        localStorage.setItem(storageKey('selected_month'), selectedMonth);
+    }, [selectedMonth, user]);
 
 
     // --- TRANSAÇÕES ---
